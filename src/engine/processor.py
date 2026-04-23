@@ -36,6 +36,19 @@ class FaceProcessor:
         
         return [face.normed_embedding for face in faces]
 
+    def get_all_embeddings_from_bytes(self, image_bytes):
+        """Processes an image directly from memory/buffer."""
+        # Convert byte stream to a numpy array
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        # Decode the array into an OpenCV image
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return []
+            
+        faces = self.app.get(img)
+        return [face.normed_embedding for face in faces]
+
     @staticmethod
     def compare_faces(target_emb, candidate_embeddings, threshold=0.6):
         """
