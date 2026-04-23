@@ -26,6 +26,9 @@ def run_search(target_image_path, search_dir, output_dir):
     start_time = time.time()
     count = 0
     matches = 0
+    
+    
+    
 
     for img_path in get_image_paths(search_dir):
         count += 1

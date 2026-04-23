@@ -1,3 +1,37 @@
-venv/   
+# --- Python & Environment ---
 .venv/
-*.exe
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.pytest_cache/
+
+# --- FaceSearch Data (Crucial) ---
+# We ignore the actual images and the extracted matches to protect privacy
+data/targets/*
+data/found_images/*
+data/test_samples/*
+
+# Allow the folders themselves to be tracked but not the content
+!data/targets/.gitkeep
+!data/found_images/.gitkeep
+
+# --- AI Models & Heavy Binaries ---
+# InsightFace and ONNX models are large; users should download them locally
+*.onnx
+*.pb
+.insightface/
+models/
+
+# --- IDEs & OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs & Performance ---
+logs/
+*.log
+.coverage
