@@ -13,7 +13,6 @@ def run_search(target_image_path, search_dir, output_dir):
     processor = FaceProcessor()
     
     # 1. Generate Target Embedding (The Reference)
-    # For the target, we still want the primary/largest face to ensure quality
     print(f"[*] Analyzing target: {target_image_path}")
     target_embedding = processor.get_embedding(target_image_path)
     
@@ -41,6 +40,10 @@ def run_search(target_image_path, search_dir, output_dir):
             # Check if ANY of the faces in this image match the target
             is_match, score = processor.compare_faces(target_embedding, candidate_embeddings)
             
+            # Updated Logging Format
+            status = "MATCHED" if is_match else "SKIPPED"
+            print(f"{count} |Score: {score:.4f} | File: {Path(img_path).name} | {status} ")
+            
             if is_match:
                 matches += 1
                 # Non-destructive copy to the centralized directory
@@ -51,9 +54,11 @@ def run_search(target_image_path, search_dir, output_dir):
                     destination = out_path / f"{matches}_{Path(img_path).name}"
                 
                 shutil.copy(img_path, destination)
-                print(f"[+] Match found ({score:.2f}): {Path(img_path).name}")
+        else:
+            # Handling images where no faces are found to keep the count consistent
+            print(f"{count} |Score: N/A    | File: {Path(img_path).name} | NO FACE DETECTED")
 
-    # 4. Performance Summary
+    # 4. Performance Summary (Restored)
     end_time = time.time()
     duration = end_time - start_time
     print(f"\n{'='*30}")
@@ -66,7 +71,7 @@ def run_search(target_image_path, search_dir, output_dir):
 
 
 def run_drive_search(target_path, drive_folder_id, output_dir):
-    service = get_drive_service() # This will use your credentials.json
+    service = get_drive_service() 
     handler = DriveHandler(service)
     processor = FaceProcessor()
     
@@ -80,20 +85,27 @@ def run_drive_search(target_path, drive_folder_id, output_dir):
     drive_files = handler.list_all_images_recursive(drive_folder_id)
     print(f"[*] Found {len(drive_files)} images total. Starting memory-stream scan...")
 
+    count = 0
     for file in drive_files:
+        count += 1
         # In-memory processing
         img_bytes = handler.get_file_bytes(file['id'])
         candidate_embs = processor.get_all_embeddings_from_bytes(img_bytes)
         
         if candidate_embs:
-            # Cosine similarity math
             is_match, score = processor.compare_faces(target_emb, candidate_embs)
+            
+            # Updated Logging Format
+            status = "MATCHED" if is_match else "SKIPPED"
+            print(f"{count} |Score: {score:.4f} | File: {file['name']} | {status} ")
+
             if is_match:
                 # Targeted download
                 save_path = Path(output_dir) / file['name']
                 with open(save_path, "wb") as f:
                     f.write(img_bytes)
-                print(f"[+] Match found on Drive ({score:.2f}): {file['name']}")
+        else:
+            print(f"{count} |Score: N/A    | File: {file['name']} | NO FACE DETECTED")
 
 
 if __name__ == "__main__":
@@ -111,9 +123,8 @@ if __name__ == "__main__":
         run_search(TARGET_IMG, search_path, OUT_DIR)
         
     elif choice == "2":
-        # Note: You can find the Folder ID in your browser URL when the folder is open
         raw_input = input("Paste Google Drive Folder Link or ID: ")
-        folder_id = extract_folder_id(raw_input) # Automatically cleans the link
+        folder_id = extract_folder_id(raw_input) 
         run_drive_search(TARGET_IMG, folder_id, OUT_DIR)
         
     else:
