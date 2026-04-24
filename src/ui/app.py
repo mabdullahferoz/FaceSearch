@@ -25,8 +25,9 @@ def main(page: ft.Page):
     page.window.resizable = False
 
     # --- UI Refs & State ---
-    target_path_val = ft.Text("None Selected", size=12, color="blue")
+    target_path_val = ft.Image(src="", width=100, height=100, visible=False, fit="contain")
     search_path_val = ft.Text("None Selected", size=12, color="blue")
+    output_path_val = ft.Text("data/found_images", size=12, color="blue") # Default value
     mode_selection = ft.RadioGroup(
         value="local",
         content=ft.Row([
@@ -41,19 +42,31 @@ def main(page: ft.Page):
     # Progress visualization
     loading_ring = ft.ProgressRing(visible=False)
     status_msg = ft.Text("Ready", italic=True)
+    open_folder_btn = ft.TextButton("Open Output Folder", icon="folder_open", visible=False, on_click=lambda _: os.startfile(output_path_val.value))
 
     # --- Helpers ---
     def pick_file():
         root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
         path = filedialog.askopenfilename(filetypes=[("Images", "*.jpg *.png *.jpeg")])
         root.destroy()
-        if path: target_path_val.value = path; page.update()
+        if path: 
+            target_path_val.src = path
+            target_path_val.visible = True
+            # We still need the path for the search logic, so we store it in data
+            target_path_val.data = path 
+            page.update()
 
     def pick_folder():
         root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
         path = filedialog.askdirectory()
         root.destroy()
         if path: search_path_val.value = path; page.update()
+
+    def pick_output_folder():
+        root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
+        path = filedialog.askdirectory()
+        root.destroy()
+        if path: output_path_val.value = path; page.update()
 
     def toggle_view(val):
         local_btn.visible = (val == "local")
@@ -63,16 +76,17 @@ def main(page: ft.Page):
 
     # --- Execution ---
     def start_process(e):
-        t_img = target_path_val.value
-        out_dir = "data/found_images" # Centralized output
+        t_img = getattr(target_path_val, "data", None) # Access the stored path
+        out_dir = output_path_val.value # Dynamic output path 
 
-        if t_img == "None Selected":
+        if not t_img:
             messagebox.showwarning("Input Missing", "Please select your face first.")
             return
 
         # Prepare for background work
         btn_start.disabled = True
         loading_ring.visible = True
+        open_folder_btn.visible = False # Hide button when a new search starts
         status_msg.value = "AI Scanning in progress..."
         page.update()
 
@@ -89,7 +103,12 @@ def main(page: ft.Page):
                         run_drive_search(t_img, folder_id, out_dir)
                 
                 # Success
-                page.run_thread(lambda: messagebox.showinfo("Done", "Scan Complete! Check data/found_images"))
+                def success_ui():
+                    open_folder_btn.visible = True
+                    page.update()
+                    messagebox.showinfo("Done", f"Scan Complete! Files saved to: {out_dir}")
+
+                page.run_thread(success_ui)
             except Exception as ex:
                 page.run_thread(lambda: messagebox.showerror("Error", f"An error occurred: {str(ex)}"))
             finally:
@@ -114,7 +133,12 @@ def main(page: ft.Page):
             search_path_val,
             drive_input,
             ft.Divider(),
+            ft.Text("3. Output Destination", weight="bold"),
+            ft.ElevatedButton("Select Output Folder", icon="folder_special", on_click=lambda _: pick_output_folder()),
+            output_path_val,
+            ft.Divider(),
             ft.Row([loading_ring, status_msg], alignment=ft.MainAxisAlignment.CENTER),
+            open_folder_btn,
             btn_start,
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
